@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Avaliação V5.5 - Oficial</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #FF6B00; --dark: #2D3436; --light: #F9F9F9;
+            --success: #2ecc71; --danger: #e74c3c; --gray: #dfe6e9; --star-gold: #FFD700;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--light); margin: 0; color: var(--dark); }
+        
+        /* LOGIN */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(45, 52, 54, 0.98); z-index: 20000; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .login-box { background: white; padding: 40px; border-radius: 20px; width: 90%; max-width: 350px; text-align: center; }
+
+        .admin-view { display: none; padding: 20px; max-width: 1100px; margin: 0 auto; position: relative; }
+
+        /* IMPRESSÃO */
+        @media print { 
+            body * { display: none !important; } 
+            #qr-printable-zone, #qr-printable-zone * { display: block !important; visibility: visible !important; } 
+            #qr-printable-zone { position: absolute; left: 0; top: 0; width: 100%; text-align: center; }
+        }
+
+        /* ANIMAÇÕES */
+        @keyframes pulse-danger {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+        .pulse-active { animation: pulse-danger 2s infinite; }
+
+        /* BOTÕES */
+        .btn-premium { 
+            background: var(--primary); color: #fff; border: none; 
+            font-weight: 800; border-radius: 50px; cursor: pointer; 
+            transition: all 0.3s ease; text-transform: uppercase; font-size: 1rem; padding: 18px 30px;
+        }
+        .btn-premium:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255,107,0,0.5); }
+        .btn-small { padding: 8px 20px; font-size: 0.75rem; width: auto; }
+        
+        /* BOTÃO SAIR POSICIONADO À DIREITA */
+        .btn-logout {
+            position: absolute; right: 20px; top: 20px;
+            background: transparent; color: #b2bec3; border: 1px solid #dfe6e9;
+            font-weight: 700; border-radius: 50px; cursor: pointer;
+            padding: 8px 15px; font-size: 0.7rem; transition: all 0.3s ease;
+        }
+        .btn-logout:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
+        .btn-baixar { background: var(--danger) !important; }
+        .btn-validado { background: var(--success) !important; cursor: default; opacity: 0.8; }
+
+        /* TELA CLIENTE */
+        .client-view { max-width: 480px; margin: 0 auto; padding: 30px 20px; background: #fff; min-height: 100vh; text-align: center; }
+        .header-logo h2 { color: var(--primary); margin: 0; font-weight: 900; font-size: 1.8rem; }
+        .input-row { display: flex; gap: 20px; margin-bottom: 25px; }
+        .input-row div { flex: 1; text-align: left; }
+        input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; text-align: center; font-size: 1rem; box-sizing: border-box; }
+        .form-group { margin-bottom: 25px; }
+        .form-group label { font-weight: 700; display: block; margin-bottom: 8px; }
+
+        .star-rating { display: flex; justify-content: center; flex-direction: row-reverse; }
+        .star-rating input { display: none; }
+        .star-rating label { font-size: 42px; cursor: pointer; color: #ddd; padding: 0 4px; transition: color 0.2s ease; }
+        .star-rating label:hover, .star-rating label:hover ~ label { color: var(--star-gold) !important; }
+        .star-rating input:checked ~ label { color: var(--star-gold); }
+
+        /* DASHBOARD */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; margin-top: 20px; }
+        .metric-card { background: #fff; padding: 20px; border-radius: 15px; text-align: center; border: 1px solid #eee; }
+        .metric-card span { display: block; font-size: 1.8rem; font-weight: bold; color: var(--primary); }
+        .metric-card small { color: #888; font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
+
+        details { background: white; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; overflow: hidden; text-align: left; }
+        summary { padding: 15px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        summary::after { content: '▼'; color: var(--primary); font-size: 0.8rem; }
+
+        .coupon-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .coupon-table td { padding: 12px; border-bottom: 1px solid #eee; }
+
+        .review-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 12px; border-left: 6px solid var(--gray); text-align: left; }
+        .card-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.75rem; margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Acesso Restrito</h2>
+            <input type="email" id="admEmail" placeholder="E-mail" style="margin-bottom: 15px; text-align: left;">
+            <input type="password" id="admPass" placeholder="Senha" style="margin-bottom: 25px; text-align: left;">
+            <button class="btn-premium" style="width: 100%;" onclick="handleLogin()">Entrar na Loja</button>
+            <p id="loginError" style="color: var(--danger); font-size: 0.8rem; margin-top: 15px; display: none;">Credenciais Incorretas</p>
+            <button onclick="hideLogin()" style="margin-top: 20px; border:none; background:none; color:#888; cursor:pointer;">Voltar</button>
+        </div>
+    </div>
+
+    <div id="client-app" class="client-view">
+        <div id="header-client" class="header-logo">
+            <h2>Obrigado Pela Visita!</h2>
+            <p>A sua avaliação é o nosso tempero Secreto.</p>
+        </div>
+        
+        <div id="client-form-container">
+            <form onsubmit="submitReview(event)">
+                <div class="input-row">
+                    <div><label>Nº Mesa</label><input type="number" id="tableNum" required></div>
+                    <div><label>Valor Gasto</label><input type="number" id="spendValue" step="0.01"></div>
+                </div>
+                <div class="form-group"><label>Prato Principal</label><div class="star-rating"><input type="radio" id="p1-5" name="rate_dish" value="5" required><label for="p1-5">★</label><input type="radio" id="p1-4" name="rate_dish" value="4"><label for="p1-4">★</label><input type="radio" id="p1-3" name="rate_dish" value="3"><label for="p1-3">★</label><input type="radio" id="p1-2" name="rate_dish" value="2"><label for="p1-2">★</label><input type="radio" id="p1-1" name="rate_dish" value="1"><label for="p1-1">★</label></div></div>
+                <div class="form-group"><label>Bebidas</label><div class="star-rating"><input type="radio" id="p2-5" name="rate_drink" value="5" required><label for="p2-5">★</label><input type="radio" id="p2-4" name="rate_drink" value="4"><label for="p2-4">★</label><input type="radio" id="p2-3" name="rate_drink" value="3"><label for="p2-3">★</label><input type="radio" id="p2-2" name="rate_drink" value="2"><label for="p2-2">★</label><input type="radio" id="p2-1" name="rate_drink" value="1"><label for="p2-1">★</label></div></div>
+                <div class="form-group"><label>Atendimento</label><div class="star-rating"><input type="radio" id="p3-5" name="rate_service" value="5" required><label for="p3-5">★</label><input type="radio" id="p3-4" name="rate_service" value="4"><label for="p3-4">★</label><input type="radio" id="p3-3" name="rate_service" value="3"><label for="p3-3">★</label><input type="radio" id="p3-2" name="rate_service" value="2"><label for="p3-2">★</label><input type="radio" id="p3-1" name="rate_service" value="1"><label for="p3-1">★</label></div></div>
+                <div class="form-group"><label>Ambiente</label><div class="star-rating"><input type="radio" id="p4-5" name="rate_struct" value="5" required><label for="p4-5">★</label><input type="radio" id="p4-4" name="rate_struct" value="4"><label for="p4-4">★</label><input type="radio" id="p4-3" name="rate_struct" value="3"><label for="p4-3">★</label><input type="radio" id="p4-2" name="rate_struct" value="2"><label for="p4-2">★</label><input type="radio" id="p4-1" name="rate_struct" value="1"><label for="p4-1">★</label></div></div>
+
+                <div class="form-group">
+                    <label>Deseja ganhar um cupom de 10% de desconto?</label>
+                    <div style="display:flex; justify-content:center; gap:30px; margin-top:10px;">
+                        <label style="font-weight:600"><input type="radio" name="want_coupon" value="Sim" onclick="toggleC(true)"> Sim</label>
+                        <label style="font-weight:600"><input type="radio" name="want_coupon" value="Não" onclick="toggleC(false)" checked> Não</label>
+                    </div>
+                </div>
+                <div id="c-fields" style="display:none; margin-bottom:20px;">
+                    <input type="text" id="cName" placeholder="Seu Nome" style="margin-bottom:10px">
+                    <input type="tel" id="cPhone" placeholder="Seu WhatsApp">
+                </div>
+                <button type="submit" class="btn-premium" style="width:100%; margin-top:35px;">Finalizar Avaliação</button>
+            </form>
+        </div>
+
+        <div id="success-screen" style="display:none; padding:40px 0;">
+            <div style="font-size: 4rem; color: var(--success); margin-bottom: 20px;">✓</div>
+            <h2 id="success-msg" style="line-height: 1.4;"></h2>
+            
+            <div id="coupon-box" style="display:none; border: 3px dashed var(--primary); padding:25px; border-radius:20px; background:#fffcf9; margin-top:20px;">
+                <p style="font-weight:700; margin-bottom: 10px;">CÓDIGO DE DESCONTO:</p>
+                <h2 id="generatedCode" style="color:var(--primary); font-size:2.8rem; letter-spacing:2px; margin: 15px 0;"></h2>
+                <p style="color:var(--danger); font-weight:800; font-size: 1.1rem;">📸 TIRE UM PRINT DESTA TELA!</p>
+                <p style="font-size:0.9rem; margin-top: 15px;">Válido até: <span id="validUntil" style="font-weight:bold;"></span></p>
+            </div>
+        </div>
+
+        <div style="margin-top:50px" class="no-print"><small onclick="showLogin()" style="color:#f9f9f9; cursor:pointer;">Acesso Admin</small></div>
+    </div>
+
+    <div id="admin-app" class="admin-view">
+        <button onclick="logout()" class="btn-logout">Sair do Painel</button>
+        
+        <h2 style="color: var(--primary); font-size: 2.2rem; margin-bottom: 10px;">Performance do Negócio</h2>
+        
+        <div class="global-filter no-print" style="margin-bottom:35px; display: flex; align-items: center; justify-content: center; gap: 15px;">
+            <div>De: <input type="date" id="dateStart" style="width:auto"></div>
+            <div>Até: <input type="date" id="dateEnd" style="width:auto"></div>
+            <button class="btn-premium btn-small" onclick="renderAdmin()">Filtrar</button>
+        </div>
+        
+        <div class="dashboard-grid">
+            <div class="metric-card"><span id="cardAvg">0.0</span><small>Média Geral</small></div>
+            <div class="metric-card"><span id="cardTotal">0</span><small>Avaliações</small></div>
+            <div class="metric-card"><span id="cardTicket">R$ 0,00</span><small>Ticket Médio</small></div>
+        </div>
+
+        <details open><summary>Controle de Cupons</summary>
+            <div style="overflow-x:auto;"><table class="coupon-table">
+                <thead><tr><th>Cliente</th><th>Cupom</th><th>Gerado</th><th>Expira</th><th>Ação</th></tr></thead>
+                <tbody id="couponList"></tbody>
+            </table></div>
+        </details>
+
+        <details><summary>Histórico de Avaliações</summary><div id="reviewsList" style="padding:15px;"></div></details>
+
+        <details class="no-print"><summary>Gerar QR Code Mesa</summary>
+            <div style="padding:20px; text-align:center;">
+                <input type="text" id="qr-link" placeholder="Link da página" style="width:280px; margin-bottom:15px;"><br>
+                <button class="btn-premium btn-small" onclick="generateQR()">Gerar QR</button>
+                <button class="btn-premium btn-small" style="background:#444 !important;" onclick="window.print()">Imprimir</button>
+                <div id="qr-printable-zone" style="display:none; margin-top:40px; padding:40px; border:2px solid #000; background:white;">
+                    <div id="qrcode" style="display:flex; justify-content:center; margin-bottom:20px;"></div>
+                    <h1 style="font-size: 26pt; font-weight: 900;">AVALIE A SUA EXPERIÊNCIA</h1>
+                    <p style="font-size:18pt; font-weight: bold;">Sua opinião vale um cupom de 10%!</p>
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <script>
+        const ADM_EMAIL = "bno229@gmail.com";
+        const ADM_PASS = "290519";
+        let db = JSON.parse(localStorage.getItem('reviews')) || [];
+
+        function showLogin() { document.getElementById('login-screen').style.display = 'flex'; }
+        function hideLogin() { document.getElementById('login-screen').style.display = 'none'; }
+        function logout() { location.reload(); }
+
+        function handleLogin() {
+            if(document.getElementById('admEmail').value === ADM_EMAIL && document.getElementById('admPass').value === ADM_PASS) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('client-app').style.display = 'none';
+                document.getElementById('admin-app').style.display = 'block';
+                renderAdmin();
+            } else { document.getElementById('loginError').style.display = 'block'; }
+        }
+
+        function toggleC(s) { document.getElementById('c-fields').style.display = s ? 'block' : 'none'; }
+
+        function generateQR() {
+            const link = document.getElementById('qr-link').value;
+            if(!link) return;
+            document.getElementById("qr-printable-zone").style.display="block";
+            const cont = document.getElementById("qrcode"); cont.innerHTML="";
+            new QRCode(cont, { text: link, width: 250, height: 250 });
+        }
+
+        function submitReview(e) {
+            e.preventDefault();
+            const n1 = parseInt(document.querySelector('input[name="rate_dish"]:checked').value);
+            const n2 = parseInt(document.querySelector('input[name="rate_drink"]:checked').value);
+            const n3 = parseInt(document.querySelector('input[name="rate_service"]:checked').value);
+            const n4 = parseInt(document.querySelector('input[name="rate_struct"]:checked').value);
+            const wantC = document.querySelector('input[name="want_coupon"]:checked').value === "Sim";
+            const coupon = wantC ? "VIP-"+Math.floor(1000+Math.random()*9000) : null;
+            const now = new Date();
+            const expDate = new Date(); expDate.setDate(now.getDate() + 5);
+            
+            const entry = {
+                table: document.getElementById('tableNum').value,
+                value: parseFloat(document.getElementById('spendValue').value) || 0,
+                avg: (n1+n2+n3+n4)/4, n1, n2, n3, n4,
+                name: document.getElementById('cName').value || "Anônimo",
+                phone: document.getElementById('cPhone').value || "-",
+                date: now.toISOString().split('T')[0],
+                time: now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+                coupon: coupon, used: false,
+                expiryRaw: expDate.getTime()
+            };
+            
+            db.unshift(entry); localStorage.setItem('reviews', JSON.stringify(db));
+
+            document.getElementById('client-form-container').style.display = 'none';
+            document.getElementById('header-client').style.display = 'none';
+            document.getElementById('success-screen').style.display = 'block';
+
+            // FRASES VALIDADAS
+            if(coupon) {
+                document.getElementById('success-msg').innerText = "Obrigado! Aqui está seu cupom:";
+                document.getElementById('coupon-box').style.display = 'block';
+                document.getElementById('generatedCode').innerText = coupon;
+                document.getElementById('validUntil').innerText = new Date(entry.expiryRaw).toLocaleDateString('pt-BR');
+            } else {
+                document.getElementById('success-msg').innerText = "Obrigado pela sua avaliação! Ela nos ajuda a crescer.";
+                document.getElementById('coupon-box').style.display = 'none';
+            }
+        }
+
+        function darBaixa(idx) { db[idx].used = true; localStorage.setItem('reviews', JSON.stringify(db)); renderAdmin(); }
+
+        function renderAdmin() {
+            const start = document.getElementById('dateStart').value;
+            const end = document.getElementById('dateEnd').value;
+            let count=0, sAvg=0, sCash=0;
+            const cL = document.getElementById('couponList'), rL = document.getElementById('reviewsList');
+            cL.innerHTML=''; rL.innerHTML='';
+            const nowTime = new Date().getTime();
+
+            db.forEach((item, i) => {
+                if(start && item.date < start) return;
+                if(end && item.date > end) return;
+                count++; sAvg += item.avg; sCash += item.value;
+                if(item.coupon) {
+                    const isExpired = nowTime > item.expiryRaw;
+                    const canRedeem = !item.used && !isExpired;
+                    cL.innerHTML += `<tr>
+                        <td>${item.name}</td><td><b>${item.coupon}</b></td>
+                        <td>${item.date.split('-').reverse().join('/')}</td>
+                        <td style="color:${isExpired && !item.used ? 'var(--danger)' : 'inherit'}">${new Date(item.expiryRaw).toLocaleDateString('pt-BR')}</td>
+                        <td><button class="btn-premium btn-small ${item.used?'btn-validado':'btn-baixar'} ${canRedeem?'pulse-active':''}" onclick="${item.used?'':'darBaixa('+i+')'}">${item.used?'VALIDADO':'BAIXAR'}</button></td>
+                    </tr>`;
+                }
+                rL.innerHTML += `<div class="review-card" style="border-left-color:${item.avg >= 4 ? 'var(--success)' : 'var(--danger)'}">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Mesa ${item.table} - ${item.avg.toFixed(1)}★</span><small>${item.date.split('-').reverse().join('/')} às ${item.time}</small></div>
+                    <div class="card-details"><span>🍴 Prato: ${item.n1}★</span><span>🍹 Bebida: ${item.n2}★</span><span>👨‍🍳 Atend: ${item.n3}★</span><span>🏠 Amb: ${item.n4}★</span></div>
+                    <div style="margin-top:10px; font-weight:bold; color:var(--primary); font-size:0.85rem; display:flex; justify-content:space-between;">
+                        <span>${item.name} (${item.phone})</span><span>R$ ${item.value.toFixed(2)}</span>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('cardTotal').textContent = count;
+            document.getElementById('cardAvg').textContent = count > 0 ? (sAvg/count).toFixed(1) : "0.0";
+            document.getElementById('cardTicket').textContent = (count > 0 ? (sCash/count) : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+        }
+    </script>
+</body>
+</html>
