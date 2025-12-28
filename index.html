@@ -10,7 +10,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Configuração inserida conforme seus dados
         const firebaseConfig = {
             apiKey: "AIzaSyDysVQvQqWkkDY5rb4XlyoRUelyvtokvN0",
             authDomain: "avalie-73150.firebaseapp.com",
@@ -23,8 +22,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- FUNÇÕES DE BANCO DE DADOS ---
-        
         window.submitReview = async (e) => {
             e.preventDefault();
             const n1 = parseInt(document.querySelector('input[name="rate_dish"]:checked').value);
@@ -49,12 +46,11 @@
             };
 
             try {
-                // Adiciona ao Firestore e gera um ID Único automático
                 await addDoc(collection(db, "reviews"), entry);
                 mostrarSucesso(coupon, expDate);
             } catch (err) { 
                 console.error("Erro Firebase:", err);
-                alert("Erro ao salvar no banco de dados. Verifique as regras do Firestore."); 
+                alert("Erro ao salvar no banco de dados."); 
             }
         };
 
@@ -67,7 +63,6 @@
         window.renderAdmin = async () => {
             const q = query(collection(db, "reviews"), orderBy("timestamp", "desc"));
             const querySnapshot = await getDocs(q);
-            
             const start = document.getElementById('dateStart').value;
             const end = document.getElementById('dateEnd').value;
             let count=0, sAvg=0, sCash=0;
@@ -77,13 +72,10 @@
             querySnapshot.forEach((docSnap) => {
                 const item = docSnap.data();
                 const id = docSnap.id;
-
                 if(start && item.date < start) return;
                 if(end && item.date > end) return;
-                
                 count++; sAvg += item.avg; sCash += item.value;
                 let statusColor = item.avg < 3 ? 'var(--danger)' : (item.avg > 4 ? 'var(--success)' : 'var(--gray)');
-
                 if(item.coupon) {
                     cL.innerHTML += `<tr>
                         <td class="col-cliente">${item.name}</td>
@@ -93,7 +85,7 @@
                         <td class="col-acao"><button class="${item.used?'btn-validado':'btn-baixar'}" onclick="${item.used?'':'darBaixa(\''+id+'\')'}">${item.used?'VALIDADO':'BAIXAR'}</button></td>
                     </tr>`;
                 }
-                rL.innerHTML += `<div class="review-card" style="border-left-color: ${statusColor}">
+                rL.innerHTML += `<div class="review-card" style="border-left: 8px solid ${statusColor}">
                     <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Mesa ${item.table} - ${item.avg.toFixed(1)}★</span><small>${item.date.split('-').reverse().join('/')} às ${item.time}</small></div>
                     <div class="card-details"><span>🍴 Prato: ${item.n1}★</span><span>🍹 Bebida: ${item.n2}★</span><span>👨‍🍳 Atend: ${item.n3}★</span><span>🏠 Amb: ${item.n4}★</span></div>
                     <div style="margin-top:10px; font-weight:bold; color:var(--primary); display:flex; justify-content:space-between;"><span>${item.name} (${item.phone})</span><span>R$ ${item.value.toFixed(2)}</span></div>
@@ -103,6 +95,15 @@
             document.getElementById('cardAvg').textContent = count > 0 ? (sAvg/count).toFixed(1) : "0.0";
             document.getElementById('cardTicket').textContent = (count > 0 ? (sCash/count) : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
         };
+
+        window.handleLogin = () => {
+            if(document.getElementById('admEmail').value === "bno229@gmail.com" && document.getElementById('admPass').value === "290519") {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('client-app').style.display = 'none';
+                document.getElementById('admin-app').style.display = 'block';
+                window.renderAdmin();
+            } else { alert("Credenciais incorretas."); }
+        };
     </script>
 
     <style>
@@ -111,31 +112,48 @@
         .client-view { max-width: 500px; margin: 0 auto; padding: 40px 20px; background: #fff; min-height: 100vh; text-align: center; box-sizing: border-box; }
         .client-input { width: 100%; padding: 16px; border: 1px solid #ddd; border-radius: 12px; font-size: 1.1rem; box-sizing: border-box; text-align: center; transition: 0.3s; }
         .question-label { display: block; text-align: center; font-weight: 700; font-size: 1.1rem; margin-bottom: 5px; color: #444; }
+        
+        /* ESTILIZAÇÃO DOS BOTÕES COM HOVER E BRILHO */
+        .btn-finalizar { 
+            background: var(--primary); color: #fff; border: none; font-weight: 800; border-radius: 50px; cursor: pointer; padding: 22px; width: 100%; text-transform: uppercase; font-size: 1.1rem; margin-top: 20px; 
+            box-shadow: 0 4px 15px rgba(255,107,0,0.3); transition: all 0.3s ease; 
+        }
+        .btn-finalizar:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(255,107,0,0.5); filter: brightness(1.15); }
+        .btn-finalizar:active { transform: translateY(0px); }
+
         .star-rating { display: flex; justify-content: center; flex-direction: row-reverse; margin-bottom: 25px; }
         .star-rating input { display: none; }
         .star-rating label { font-size: 45px; cursor: pointer; color: #ddd; padding: 0 4px; transition: color 0.2s ease; }
         .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: var(--star-gold) !important; }
-        .btn-finalizar { background: var(--primary); color: #fff; border: none; font-weight: 800; border-radius: 50px; cursor: pointer; padding: 22px; width: 100%; text-transform: uppercase; font-size: 1.1rem; margin-top: 20px; transition: all 0.4s; box-shadow: 0 4px 15px rgba(255,107,0,0.3); }
-        .btn-finalizar:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(255,107,0,0.5); filter: brightness(1.1); }
+        
         .admin-view { display: none; padding: 50px 20px; max-width: 1000px; margin: 0 auto; position: relative; }
-        .btn-logout { position: absolute; right: 20px; top: 20px; background: transparent; color: #b2bec3; border: 1px solid #dfe6e9; border-radius: 20px; cursor: pointer; padding: 8px 18px; font-size: 0.75rem; }
+        .btn-logout { position: absolute; right: 20px; top: 20px; background: transparent; color: #b2bec3; border: 1px solid #dfe6e9; border-radius: 20px; cursor: pointer; padding: 8px 18px; font-size: 0.75rem; transition: 0.3s; }
+        .btn-logout:hover { background: #eee; color: var(--dark); }
+
         .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 35px; }
         .metric-card { background: #fff; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border: 1px solid #f0f0f0; }
         .metric-card span { display: block; font-size: 2.2rem; font-weight: 800; color: var(--primary); }
+        
         details { background: white; margin-bottom: 15px; border-radius: 12px; border: 1px solid #eee; overflow: hidden; }
         summary { padding: 20px; font-weight: 800; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
         summary::after { content: '▼'; color: var(--primary); font-size: 0.8rem; transition: 0.3s; }
         details[open] summary::after { transform: rotate(180deg); }
+
         .coupon-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .coupon-table th { padding: 15px; text-align: left; color: #aaa; font-size: 0.7rem; border-bottom: 2px solid #f0f0f0; }
-        .coupon-table td { padding: 15px; border-bottom: 1px solid #f9f9f9; font-size: 0.85rem; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .col-cliente { width: 25%; } .col-cupom { width: 20%; } .col-data { width: 18%; } .col-expira { width: 18%; } .col-acao { width: 19%; text-align: center; }
+        .coupon-table td { padding: 15px; border-bottom: 1px solid #f9f9f9; font-size: 0.85rem; vertical-align: middle; }
+        
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
-        .btn-baixar { background: var(--danger); color: white; border: none; padding: 10px 0; width: 90px; border-radius: 20px; font-weight: bold; cursor: pointer; animation: pulse-red 2s infinite; font-size: 0.65rem; }
+        .btn-baixar { background: var(--danger); color: white; border: none; padding: 10px 0; width: 90px; border-radius: 20px; font-weight: bold; cursor: pointer; animation: pulse-red 2s infinite; font-size: 0.65rem; transition: 0.3s; }
+        .btn-baixar:hover { filter: brightness(1.2); }
         .btn-validado { background: var(--success); color: white; border: none; padding: 10px 0; width: 90px; border-radius: 20px; font-weight: bold; opacity: 0.6; font-size: 0.65rem; cursor: default; }
-        .review-card { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 15px; border-left: 8px solid var(--gray); border: 1px solid #f0f0f0; transition: 0.3s; }
+        
+        .review-card { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #f0f0f0; transition: 0.3s; }
         .card-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; margin-top: 12px; background: #f9f9f9; padding: 12px; border-radius: 8px; }
-        .btn-dark { background: #333; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        
+        .btn-dark { background: #333; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 800; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
+        .btn-dark:hover { filter: brightness(1.4); transform: translateY(-2px); }
+
         .no-print { display: block; }
         @media print { .no-print { display: none !important; } }
     </style>
@@ -236,7 +254,7 @@
                     <button class="btn-finalizar" style="width:auto; padding:12px 30px; margin:0;" onclick="generateQR()">GERAR QR</button>
                     <button class="btn-dark" onclick="window.print()">IMPRIMIR</button>
                 </div>
-                <div id="qr-printable-zone" style="display:none; margin-top:40px; padding:50px; border:3px solid #000; background:white; width:fit-content; margin-left:auto; margin-right:auto; max-width: 450px;">
+                <div id="qr-printable-zone" style="display:none; margin-top:40px; padding:50px; border:3px solid #000; background:white; width:fit-content; margin: 40px auto; max-width: 450px;">
                     <div id="qrcode" style="display:flex; justify-content:center; margin-bottom:25px;"></div>
                     <h2 style="font-weight:900; font-size: 1.8rem; margin:0;">Avalie a sua experiência hoje,</h2>
                     <p style="font-size: 1.1rem; font-weight:700; margin-top: 10px;">Sua avaliação vale um cupom de 5% de desconto em sua próxima Compra!</p>
@@ -247,10 +265,11 @@
 
     <div id="login-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; display:none; flex-direction:column; align-items:center; justify-content:center;">
         <div style="background:white; padding:40px; border-radius:20px; width:300px; text-align:center;">
-            <h2 style="color:var(--primary);">Acesso Admin</h2>
-            <input type="email" id="admEmail" placeholder="E-mail" style="width:100%; padding:12px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd;">
-            <input type="password" id="admPass" placeholder="Senha" style="width:100%; padding:12px; margin-bottom:20px; border-radius:10px; border:1px solid #ddd;">
-            <button class="btn-finalizar" style="margin:0; padding:15px; width:100%" onclick="handleLogin()">Entrar</button>
+            <h2 style="color:var(--primary); margin-bottom:20px;">Acesso Admin</h2>
+            <input type="email" id="admEmail" placeholder="E-mail" style="width:100%; padding:15px; margin-bottom:15px; border-radius:12px; border:1px solid #ddd; box-sizing: border-box;">
+            <input type="password" id="admPass" placeholder="Senha" style="width:100%; padding:15px; margin-bottom:25px; border-radius:12px; border:1px solid #ddd; box-sizing: border-box;">
+            <button class="btn-finalizar" style="margin:0; width:100%" onclick="handleLogin()">Entrar</button>
+            <p onclick="document.getElementById('login-screen').style.display='none'" style="margin-top:20px; color:#999; cursor:pointer; font-size:0.9rem;">Cancelar</p>
         </div>
     </div>
     
@@ -259,29 +278,6 @@
     <script>
         function showLogin() { document.getElementById('login-screen').style.display = 'flex'; }
         function toggleC(s) { document.getElementById('c-fields').style.display = s ? 'block' : 'none'; }
-        
-        function handleLogin() {
-            if(document.getElementById('admEmail').value === "bno229@gmail.com" && document.getElementById('admPass').value === "290519") {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('client-app').style.display = 'none';
-                document.getElementById('admin-app').style.display = 'block';
-                window.renderAdmin();
-            }
-        }
-
-        function mostrarSucesso(coupon, expDate) {
-            document.getElementById('client-form-container').style.display = 'none';
-            document.getElementById('header-client').style.display = 'none';
-            document.getElementById('success-screen').style.display = 'block';
-            if(coupon) {
-                document.getElementById('coupon-box').style.display = 'block';
-                document.getElementById('generatedCode').innerText = coupon;
-                document.getElementById('validUntil').innerText = expDate.toLocaleDateString('pt-BR');
-            } else {
-                document.getElementById('no-coupon-msg').style.display = 'block';
-            }
-        }
-
         function generateQR() {
             const link = document.getElementById('qr-link').value;
             if(!link) return;
