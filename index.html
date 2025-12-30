@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Avaliação V7.0 - Firebase Live</title>
+    <title>Sistema de Avaliação V7.6 - Finalizado</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <script type="module">
@@ -24,39 +24,47 @@
 
         window.submitReview = async (e) => {
             e.preventDefault();
-            const n1 = parseInt(document.querySelector('input[name="rate_dish"]:checked').value);
-            const n2 = parseInt(document.querySelector('input[name="rate_drink"]:checked').value);
-            const n3 = parseInt(document.querySelector('input[name="rate_service"]:checked').value);
-            const n4 = parseInt(document.querySelector('input[name="rate_struct"]:checked').value);
-            const wantC = document.querySelector('input[name="want_coupon"]:checked').value === "Sim";
-            const coupon = wantC ? "VIP-"+Math.floor(1000+Math.random()*9000) : null;
-            const now = new Date();
-            const expDate = new Date(); expDate.setDate(now.getDate() + 5);
-
-            const entry = {
-                table: document.getElementById('tableNum').value,
-                value: parseFloat(document.getElementById('spendValue').value) || 0,
-                avg: (n1+n2+n3+n4)/4, n1, n2, n3, n4,
-                name: document.getElementById('cName').value || "Anônimo",
-                phone: document.getElementById('cPhone').value || "-",
-                date: now.toISOString().split('T')[0],
-                time: now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
-                timestamp: now.getTime(),
-                coupon: coupon, used: false, expiryRaw: expDate.getTime()
-            };
+            const btn = e.target.querySelector('.btn-finalizar');
+            btn.disabled = true;
+            btn.innerText = "PROCESSANDO...";
 
             try {
+                const n1 = parseInt(document.querySelector('input[name="rate_dish"]:checked').value);
+                const n2 = parseInt(document.querySelector('input[name="rate_drink"]:checked').value);
+                const n3 = parseInt(document.querySelector('input[name="rate_service"]:checked').value);
+                const n4 = parseInt(document.querySelector('input[name="rate_struct"]:checked').value);
+                const wantC = document.querySelector('input[name="want_coupon"]:checked').value === "Sim";
+                const coupon = wantC ? "VIP-"+Math.floor(1000+Math.random()*9000) : null;
+                const now = new Date();
+                const expDate = new Date(); expDate.setDate(now.getDate() + 5);
+
+                const entry = {
+                    table: document.getElementById('tableNum').value,
+                    value: parseFloat(document.getElementById('spendValue').value) || 0,
+                    avg: (n1+n2+n3+n4)/4, n1, n2, n3, n4,
+                    name: document.getElementById('cName').value || "Anônimo",
+                    phone: document.getElementById('cPhone').value || "-",
+                    date: now.toISOString().split('T')[0],
+                    time: now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+                    timestamp: now.getTime(),
+                    coupon: coupon, used: false, expiryRaw: expDate.getTime()
+                };
+
                 await addDoc(collection(db, "reviews"), entry);
-                mostrarSucesso(coupon, expDate);
-            } catch (err) { 
-                console.error("Erro Firebase:", err);
-                alert("Erro ao salvar no banco de dados."); 
-            }
+                document.getElementById('client-form-container').style.display = 'none';
+                document.getElementById('header-client').style.display = 'none';
+                document.getElementById('success-screen').style.display = 'block';
+                
+                if(coupon) {
+                    document.getElementById('coupon-box').style.display = 'block';
+                    document.getElementById('generatedCode').innerText = coupon;
+                    document.getElementById('validUntil').innerText = expDate.toLocaleDateString('pt-BR');
+                } else { document.getElementById('no-coupon-msg').style.display = 'block'; }
+            } catch (err) { alert("Erro ao salvar."); btn.disabled = false; }
         };
 
         window.darBaixa = async (id) => {
-            const docRef = doc(db, "reviews", id);
-            await updateDoc(docRef, { used: true });
+            await updateDoc(doc(db, "reviews", id), { used: true });
             renderAdmin();
         };
 
@@ -65,6 +73,8 @@
             const querySnapshot = await getDocs(q);
             const start = document.getElementById('dateStart').value;
             const end = document.getElementById('dateEnd').value;
+            const today = new Date().getTime();
+            
             let count=0, sAvg=0, sCash=0;
             const cL = document.getElementById('couponList'), rL = document.getElementById('reviewsList');
             cL.innerHTML=''; rL.innerHTML='';
@@ -75,20 +85,34 @@
                 if(start && item.date < start) return;
                 if(end && item.date > end) return;
                 count++; sAvg += item.avg; sCash += item.value;
-                let statusColor = item.avg < 3 ? 'var(--danger)' : (item.avg > 4 ? 'var(--success)' : 'var(--gray)');
+                let color = item.avg < 3 ? 'var(--danger)' : (item.avg > 4 ? 'var(--success)' : 'var(--gray)');
+                
                 if(item.coupon) {
+                    let btnHtml = item.used ? `<button class="btn-status btn-validado">UTILIZADO</button>` : 
+                                 (today > item.expiryRaw ? `<button class="btn-status btn-expirado">EXPIRADO</button>` : 
+                                 `<button class="btn-status btn-baixar" onclick="darBaixa('${id}')">GERADO</button>`);
+
                     cL.innerHTML += `<tr>
-                        <td class="col-cliente">${item.name}</td>
-                        <td class="col-cupom"><b>${item.coupon}</b></td>
-                        <td class="col-data">${item.date.split('-').reverse().join('/')}</td>
-                        <td class="col-expira">${new Date(item.expiryRaw).toLocaleDateString('pt-BR')}</td>
-                        <td class="col-acao"><button class="${item.used?'btn-validado':'btn-baixar'}" onclick="${item.used?'':'darBaixa(\''+id+'\')'}">${item.used?'VALIDADO':'BAIXAR'}</button></td>
+                        <td>${item.name}</td>
+                        <td><b>${item.coupon}</b></td>
+                        <td>${item.date.split('-').reverse().join('/')}</td>
+                        <td>${new Date(item.expiryRaw).toLocaleDateString('pt-BR')}</td>
+                        <td>${btnHtml}</td>
                     </tr>`;
                 }
-                rL.innerHTML += `<div class="review-card" style="border-left: 8px solid ${statusColor}">
-                    <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>Mesa ${item.table} - ${item.avg.toFixed(1)}★</span><small>${item.date.split('-').reverse().join('/')} às ${item.time}</small></div>
-                    <div class="card-details"><span>🍴 Prato: ${item.n1}★</span><span>🍹 Bebida: ${item.n2}★</span><span>👨‍🍳 Atend: ${item.n3}★</span><span>🏠 Amb: ${item.n4}★</span></div>
-                    <div style="margin-top:10px; font-weight:bold; color:var(--primary); display:flex; justify-content:space-between;"><span>${item.name} (${item.phone})</span><span>R$ ${item.value.toFixed(2)}</span></div>
+                rL.innerHTML += `<div class="review-card" style="border-left: 8px solid ${color}">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                        <span>Mesa ${item.table} - ${item.avg.toFixed(1)}★</span>
+                        <small>${item.date.split('-').reverse().join('/')} - ${item.time}</small>
+                    </div>
+                    <div class="card-details">
+                        <span>🍴 Prato: ${item.n1}★</span><span>🍹 Bebida: ${item.n2}★</span>
+                        <span>👨‍🍳 Atend: ${item.n3}★</span><span>🏠 Amb: ${item.n4}★</span>
+                    </div>
+                    <div style="margin-top:10px; font-weight:bold; color:var(--primary); display:flex; justify-content:space-between;">
+                        <span>${item.name} <span style="font-weight:normal; color:#888;">(${item.phone})</span></span>
+                        <span>R$ ${item.value.toFixed(2)}</span>
+                    </div>
                 </div>`;
             });
             document.getElementById('cardTotal').textContent = count;
@@ -97,103 +121,110 @@
         };
 
         window.handleLogin = () => {
-            if(document.getElementById('admEmail').value === "bno229@gmail.com" && document.getElementById('admPass').value === "290519") {
+            if(document.getElementById('admPass').value === "290519") {
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('client-app').style.display = 'none';
                 document.getElementById('admin-app').style.display = 'block';
+                const cont = document.getElementById('qrcode'); cont.innerHTML = '';
+                new QRCode(cont, {text:'https://bno229-max.github.io/avalie/', width:250, height:250, useSVG: true});
                 window.renderAdmin();
-            } else { alert("Credenciais incorretas."); }
+            } else { alert("Senha incorreta."); }
         };
     </script>
 
     <style>
-        :root { --primary: #FF6B00; --dark: #2D3436; --light: #F4F7F6; --success: #2ecc71; --danger: #e74c3c; --gray: #dfe6e9; --star-gold: #FFD700; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: var(--light); margin: 0; color: var(--dark); }
-        .client-view { max-width: 500px; margin: 0 auto; padding: 40px 20px; background: #fff; min-height: 100vh; text-align: center; box-sizing: border-box; }
-        .client-input { width: 100%; padding: 16px; border: 1px solid #ddd; border-radius: 12px; font-size: 1.1rem; box-sizing: border-box; text-align: center; transition: 0.3s; }
-        .question-label { display: block; text-align: center; font-weight: 700; font-size: 1.1rem; margin-bottom: 5px; color: #444; }
+        :root { --primary: #FF6B00; --dark: #2D3436; --light: #F4F7F6; --success: #2ecc71; --danger: #e74c3c; --gray: #dfe6e9; --star-gold: #FFD700; --purple: #9b59b6; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--light); margin: 0; }
         
-        /* ESTILIZAÇÃO DOS BOTÕES COM HOVER E BRILHO */
+        /* Client View */
+        .client-view { max-width: 450px; margin: 0 auto; padding: 40px 20px; background: #fff; min-height: 100vh; text-align: center; box-sizing: border-box; }
+        .client-input { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; box-sizing: border-box; text-align: center; margin-bottom: 10px; }
+        
         .btn-finalizar { 
-            background: var(--primary); color: #fff; border: none; font-weight: 800; border-radius: 50px; cursor: pointer; padding: 22px; width: 100%; text-transform: uppercase; font-size: 1.1rem; margin-top: 20px; 
-            box-shadow: 0 4px 15px rgba(255,107,0,0.3); transition: all 0.3s ease; 
+            background: var(--primary); color: #fff; border: none; font-weight: 800; border-radius: 50px; cursor: pointer; padding: 20px; width: 100%; text-transform: uppercase; font-size: 1.1rem; margin-top: 15px; 
+            box-shadow: 0 4px 15px rgba(255,107,0,0.3); transition: 0.3s; 
         }
-        .btn-finalizar:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(255,107,0,0.5); filter: brightness(1.15); }
-        .btn-finalizar:active { transform: translateY(0px); }
+        .btn-finalizar:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,107,0,0.5); filter: brightness(1.1); }
 
-        .star-rating { display: flex; justify-content: center; flex-direction: row-reverse; margin-bottom: 25px; }
+        .star-rating { display: flex; justify-content: center; flex-direction: row-reverse; margin-bottom: 20px; }
         .star-rating input { display: none; }
-        .star-rating label { font-size: 45px; cursor: pointer; color: #ddd; padding: 0 4px; transition: color 0.2s ease; }
+        .star-rating label { font-size: 40px; cursor: pointer; color: #ddd; padding: 0 3px; transition: 0.2s; }
         .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: var(--star-gold) !important; }
         
-        .admin-view { display: none; padding: 50px 20px; max-width: 1000px; margin: 0 auto; position: relative; }
-        .btn-logout { position: absolute; right: 20px; top: 20px; background: transparent; color: #b2bec3; border: 1px solid #dfe6e9; border-radius: 20px; cursor: pointer; padding: 8px 18px; font-size: 0.75rem; transition: 0.3s; }
-        .btn-logout:hover { background: #eee; color: var(--dark); }
+        /* Admin View */
+        .admin-view { display: none; padding: 30px 20px; max-width: 900px; margin: 0 auto; position: relative; }
+        .btn-sair-discreto { position: absolute; top: 10px; right: 20px; background: none; border: none; color: #bbb; cursor: pointer; font-size: 0.75rem; text-decoration: underline; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
+        .metric-card { background: #fff; padding: 20px; border-radius: 15px; text-align: center; border: 1px solid #eee; }
+        .metric-card span { display: block; font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+        .filter-input { border: 1px solid #ddd; border-radius: 20px; padding: 8px 15px; outline: none; }
 
-        .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 35px; }
-        .metric-card { background: #fff; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border: 1px solid #f0f0f0; }
-        .metric-card span { display: block; font-size: 2.2rem; font-weight: 800; color: var(--primary); }
-        
-        details { background: white; margin-bottom: 15px; border-radius: 12px; border: 1px solid #eee; overflow: hidden; }
-        summary { padding: 20px; font-weight: 800; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
-        summary::after { content: '▼'; color: var(--primary); font-size: 0.8rem; transition: 0.3s; }
-        details[open] summary::after { transform: rotate(180deg); }
+        details { background: white; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; }
+        summary { padding: 15px; font-weight: 800; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        summary::after { content: ' ▼'; font-size: 0.7rem; color: var(--primary); }
+        details[open] summary::after { content: ' ▲'; }
 
-        .coupon-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .coupon-table th { padding: 15px; text-align: left; color: #aaa; font-size: 0.7rem; border-bottom: 2px solid #f0f0f0; }
-        .coupon-table td { padding: 15px; border-bottom: 1px solid #f9f9f9; font-size: 0.85rem; vertical-align: middle; }
+        .coupon-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .coupon-table td { padding: 12px; border-bottom: 1px solid #f9f9f9; text-align: center; }
         
-        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
-        .btn-baixar { background: var(--danger); color: white; border: none; padding: 10px 0; width: 90px; border-radius: 20px; font-weight: bold; cursor: pointer; animation: pulse-red 2s infinite; font-size: 0.65rem; transition: 0.3s; }
-        .btn-baixar:hover { filter: brightness(1.2); }
-        .btn-validado { background: var(--success); color: white; border: none; padding: 10px 0; width: 90px; border-radius: 20px; font-weight: bold; opacity: 0.6; font-size: 0.65rem; cursor: default; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
+        .btn-status { border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.7rem; }
+        .btn-baixar { background: var(--danger); color: white; animation: pulse-red 2s infinite; cursor: pointer; }
+        .btn-validado { background: var(--success); color: white; opacity: 0.6; }
+        .btn-expirado { background: var(--purple); color: white; }
         
-        .review-card { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #f0f0f0; transition: 0.3s; }
-        .card-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; margin-top: 12px; background: #f9f9f9; padding: 12px; border-radius: 8px; }
+        .review-card { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #f0f0f0; text-align: left; }
+        .card-details { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.7rem; margin-top: 8px; background: #f9f9f9; padding: 8px; border-radius: 8px; }
         
-        .btn-dark { background: #333; color: white; border: none; padding: 12px 30px; border-radius: 50px; font-weight: 800; cursor: pointer; text-transform: uppercase; transition: 0.3s; }
-        .btn-dark:hover { filter: brightness(1.4); transform: translateY(-2px); }
-
-        .no-print { display: block; }
-        @media print { .no-print { display: none !important; } }
+        /* IMPRESSÃO FIXADA */
+        #print-area { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        
+        @media print {
+            @page { margin: 0; }
+            body * { visibility: hidden; }
+            .admin-view, #print-area, #print-area * { visibility: visible !important; }
+            .admin-view { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; margin: 0 !important; display: block !important; }
+            #print-area { height: 100vh; width: 100%; display: flex !important; }
+            #qrcode { display: block !important; margin-top: 20px; }
+            #qrcode canvas, #qrcode img { display: inline-block !important; width: 350px !important; height: 350px !important; }
+            .no-print { display: none !important; }
+            h2 { font-size: 32pt !important; margin-bottom: 20px !important; color: #000 !important; }
+            p { font-size: 18pt !important; color: #000 !important; }
+        }
     </style>
 </head>
 <body>
 
     <div id="client-app" class="client-view">
         <div id="header-client">
-            <h2 style="color:var(--primary); font-weight:900;">Obrigado Pela Visita!</h2>
-            <p style="font-size: 1.1rem; color: #666; margin-bottom: 30px;">A sua avaliação é o nosso tempero Secreto.</p>
+            <h2 style="color:var(--primary); font-weight:900; line-height: 1.2; margin-bottom:5px;">O que achou sua experiência de Hoje:</h2>
+            <p style="color:#888; font-size: 0.95rem;">Sua avaliação é o nosso tempero Secreto.</p>
         </div>
         
         <div id="client-form-container">
             <form onsubmit="submitReview(event)">
-                <div style="display: flex; gap: 15px; margin: 25px 0;">
-                    <div style="flex:1; text-align:left;"><label style="font-weight:700;">Nº Mesa</label><input type="number" id="tableNum" class="client-input" required></div>
-                    <div style="flex:1; text-align:left;"><label style="font-weight:700;">Valor Gasto</label><input type="number" id="spendValue" class="client-input" step="0.01"></div>
+                <div style="display: flex; gap: 10px; margin: 15px 0;">
+                    <input type="number" id="tableNum" placeholder="Nº Mesa" class="client-input" required>
+                    <input type="number" id="spendValue" placeholder="Valor Gasto" class="client-input" step="0.01">
                 </div>
-
-                <label class="question-label">Prato Principal</label>
+                <label style="font-weight:700;">Prato Principal</label>
                 <div class="star-rating"><input type="radio" id="p1-5" name="rate_dish" value="5" required><label for="p1-5">★</label><input type="radio" id="p1-4" name="rate_dish" value="4"><label for="p1-4">★</label><input type="radio" id="p1-3" name="rate_dish" value="3"><label for="p1-3">★</label><input type="radio" id="p1-2" name="rate_dish" value="2"><label for="p1-2">★</label><input type="radio" id="p1-1" name="rate_dish" value="1"><label for="p1-1">★</label></div>
-                
-                <label class="question-label">Bebidas</label>
+                <label style="font-weight:700;">Bebidas</label>
                 <div class="star-rating"><input type="radio" id="p2-5" name="rate_drink" value="5" required><label for="p2-5">★</label><input type="radio" id="p2-4" name="rate_drink" value="4"><label for="p2-4">★</label><input type="radio" id="p2-3" name="rate_drink" value="3"><label for="p2-3">★</label><input type="radio" id="p2-2" name="rate_drink" value="2"><label for="p2-2">★</label><input type="radio" id="p2-1" name="rate_drink" value="1"><label for="p2-1">★</label></div>
-                
-                <label class="question-label">Atendimento</label>
+                <label style="font-weight:700;">Atendimento</label>
                 <div class="star-rating"><input type="radio" id="p3-5" name="rate_service" value="5" required><label for="p3-5">★</label><input type="radio" id="p3-4" name="rate_service" value="4"><label for="p3-4">★</label><input type="radio" id="p3-3" name="rate_service" value="3"><label for="p3-3">★</label><input type="radio" id="p3-2" name="rate_service" value="2"><label for="p3-2">★</label><input type="radio" id="p3-1" name="rate_service" value="1"><label for="p3-1">★</label></div>
-                
-                <label class="question-label">Ambiente</label>
+                <label style="font-weight:700;">Ambiente</label>
                 <div class="star-rating"><input type="radio" id="p4-5" name="rate_struct" value="5" required><label for="p4-5">★</label><input type="radio" id="p4-4" name="rate_struct" value="4"><label for="p4-4">★</label><input type="radio" id="p4-3" name="rate_struct" value="3"><label for="p4-3">★</label><input type="radio" id="p4-2" name="rate_struct" value="2"><label for="p4-2">★</label><input type="radio" id="p4-1" name="rate_struct" value="1"><label for="p4-1">★</label></div>
 
-                <div style="margin: 30px 0; padding-top: 25px; border-top: 1px solid #eee;">
-                    <label style="font-weight:700;">Deseja ganhar um cupom de 5% de desconto?</label>
-                    <div style="display:flex; justify-content:center; gap:40px; margin-top:15px;">
-                        <label><input type="radio" name="want_coupon" value="Sim" onclick="toggleC(true)"> Sim</label>
-                        <label><input type="radio" name="want_coupon" value="Não" onclick="toggleC(false)" checked> Não</label>
+                <div style="margin: 20px 0; background: #fffcf0; padding: 15px; border-radius: 15px; border: 1px solid #ffeaa7;">
+                    <label style="font-weight:700;">Deseja ganhar 5% de desconto?</label>
+                    <div style="display:flex; justify-content:center; gap:30px; margin-top:10px;">
+                        <label><input type="radio" name="want_coupon" value="Sim" onclick="document.getElementById('c-fields').style.display='block'"> Sim</label>
+                        <label><input type="radio" name="want_coupon" value="Não" onclick="document.getElementById('c-fields').style.display='none'" checked> Não</label>
                     </div>
                 </div>
-                <div id="c-fields" style="display:none; margin-bottom:20px;">
-                    <input type="text" id="cName" placeholder="Seu Nome" class="client-input" style="margin-bottom:10px;">
+                <div id="c-fields" style="display:none; margin-bottom:10px;">
+                    <input type="text" id="cName" placeholder="Seu Nome" class="client-input">
                     <input type="tel" id="cPhone" placeholder="Seu WhatsApp" class="client-input">
                 </div>
                 <button type="submit" class="btn-finalizar">Finalizar Avaliação</button>
@@ -202,89 +233,65 @@
 
         <div id="success-screen" style="display:none; padding:40px 0;">
             <div style="font-size: 5rem; color: var(--success); margin-bottom: 20px;">✓</div>
-            <div id="coupon-box" style="display:none; border: 3px dashed var(--primary); padding:30px; border-radius:20px; background:#fffcf9;">
-                <p style="color:var(--danger); font-weight:900; font-size: 1.1rem; margin-bottom: 10px;">📸 TIRE UM PRINT DESTA TELA!</p>
-                <p style="margin-bottom: 20px; font-weight: 600;">Em sua próxima compra apresente esse código no caixa para validar seus 5%.</p>
-                <h2 id="generatedCode" style="color:var(--primary); font-size:3.5rem; letter-spacing:3px; margin: 20px 0; font-weight: 900;"></h2>
-                <p style="font-size: 1.1rem;">Válido até: <span id="validUntil" style="font-weight:bold; color: var(--danger);"></span></p>
+            <div id="coupon-box" style="display:none;">
+                <h3 style="color:var(--primary);">Parabéns!</h3>
+                <p>Você ganhou um cupom de 5% de desconto em sua próxima compra!</p>
+                <div style="border: 3px dashed var(--primary); padding:20px; border-radius:20px; background:#fff; margin: 20px 0;">
+                    <p style="color:var(--danger); font-weight:900; margin-bottom:5px;">📸 TIRE UM PRINT DESTA TELA!</p>
+                    <h2 id="generatedCode" style="color:var(--primary); font-size:3rem; letter-spacing:3px; font-weight: 900; margin: 10px 0;"></h2>
+                    <p>Utilize até: <span id="validUntil" style="font-weight:bold; color: var(--danger);"></span></p>
+                </div>
             </div>
-            <p id="no-coupon-msg" style="display:none; font-size: 1.2rem; color: #666; margin-top: 20px;">Obrigado pela sua avaliação!</p>
+            <p id="no-coupon-msg" style="display:none; font-size: 1.2rem; color: #666;">Obrigado pela sua avaliação!</p>
         </div>
     </div>
 
     <div id="admin-app" class="admin-view">
-        <button onclick="location.reload()" class="btn-logout no-print">Sair do Painel</button>
-        <h1 style="color: var(--primary); font-size: 3rem; text-align: center; font-weight: 800; margin-bottom: 30px;">Performance do Negócio</h1>
+        <button onclick="location.reload()" class="btn-sair-discreto no-print">Sair do Painel</button>
+        <div class="admin-header no-print"><h1 style="color: var(--primary); font-size: 2.6rem; font-weight: 800; margin:0; text-align:center;">Performance do Negócio</h1></div>
         
-        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 40px;" class="no-print">
-            De: <input type="date" id="dateStart" style="border: 1px solid #ddd; border-radius: 15px; padding: 12px;">
-            Até: <input type="date" id="dateEnd" style="border: 1px solid #ddd; border-radius: 15px; padding: 12px;">
-            <button class="btn-finalizar" style="width:auto; padding: 12px 35px; margin:0;" onclick="renderAdmin()">FILTRAR</button>
+        <div style="display: flex; justify-content: center; gap: 10px; margin: 25px 0;" class="no-print">
+            <input type="date" id="dateStart" class="filter-input"> <input type="date" id="dateEnd" class="filter-input"> 
+            <button class="btn-finalizar" style="width:auto; padding:8px 25px; margin:0; font-size:0.8rem;" onclick="renderAdmin()">FILTRAR</button>
         </div>
-        
-        <div class="dashboard-grid">
+
+        <div class="dashboard-grid no-print">
             <div class="metric-card"><span id="cardAvg">0.0</span><small>Média Geral</small></div>
             <div class="metric-card"><span id="cardTotal">0</span><small>Avaliações</small></div>
             <div class="metric-card"><span id="cardTicket">R$ 0,00</span><small>Ticket Médio</small></div>
         </div>
 
-        <details open><summary>Controle de Cupons</summary>
-            <div style="overflow-x:auto;">
-                <table class="coupon-table">
-                    <thead>
-                        <tr>
-                            <th class="col-cliente">CLIENTE</th>
-                            <th class="col-cupom">CUPOM</th>
-                            <th class="col-data">GERADO</th>
-                            <th class="col-expira">EXPIRA</th>
-                            <th class="col-acao">AÇÃO</th>
-                        </tr>
-                    </thead>
-                    <tbody id="couponList"></tbody>
-                </table>
-            </div>
+        <details open class="no-print"><summary>Controle de Cupons</summary>
+            <table class="coupon-table">
+                <thead><tr style="font-size:0.7rem; color:#aaa;"><th>CLIENTE</th><th>CUPOM</th><th>DATA</th><th>EXPIRA</th><th>STATUS</th></tr></thead>
+                <tbody id="couponList"></tbody>
+            </table>
         </details>
 
-        <details><summary>Histórico de Avaliações</summary><div id="reviewsList" style="padding:15px;"></div></details>
+        <details class="no-print"><summary>Histórico de Avaliações</summary>
+            <div id="reviewsList" style="padding:10px;"></div>
+        </details>
         
-        <details><summary>Gerar QR Code Mesa</summary>
-            <div style="padding:40px; text-align:center;">
-                <input type="text" id="qr-link" placeholder="Cole o link aqui" class="client-input" style="width:350px; margin-bottom:20px;"><br>
-                <div style="display:flex; justify-content:center; gap:15px;">
-                    <button class="btn-finalizar" style="width:auto; padding:12px 30px; margin:0;" onclick="generateQR()">GERAR QR</button>
-                    <button class="btn-dark" onclick="window.print()">IMPRIMIR</button>
+        <details class="no-print"><summary>Gerar QR Code Loja</summary>
+            <div style="padding:20px; text-align:center;">
+                <div id="print-area">
+                    <h2 style="color:var(--primary); font-weight: 900;">Avalie a sua experiência de hoje</h2>
+                    <p style="font-weight:bold;">e ganhe um desconto de 5% em sua próxima compra!</p>
+                    <div id="qrcode" style="display:flex; justify-content:center; margin: 20px 0;"></div>
                 </div>
-                <div id="qr-printable-zone" style="display:none; margin-top:40px; padding:50px; border:3px solid #000; background:white; width:fit-content; margin: 40px auto; max-width: 450px;">
-                    <div id="qrcode" style="display:flex; justify-content:center; margin-bottom:25px;"></div>
-                    <h2 style="font-weight:900; font-size: 1.8rem; margin:0;">Avalie a sua experiência hoje,</h2>
-                    <p style="font-size: 1.1rem; font-weight:700; margin-top: 10px;">Sua avaliação vale um cupom de 5% de desconto em sua próxima Compra!</p>
-                </div>
+                <button onclick="window.print()" class="btn-finalizar" style="width:auto; padding:12px 30px; background:#333;">IMPRIMIR PARA MESA</button>
             </div>
         </details>
     </div>
 
     <div id="login-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; display:none; flex-direction:column; align-items:center; justify-content:center;">
         <div style="background:white; padding:40px; border-radius:20px; width:300px; text-align:center;">
-            <h2 style="color:var(--primary); margin-bottom:20px;">Acesso Admin</h2>
-            <input type="email" id="admEmail" placeholder="E-mail" style="width:100%; padding:15px; margin-bottom:15px; border-radius:12px; border:1px solid #ddd; box-sizing: border-box;">
-            <input type="password" id="admPass" placeholder="Senha" style="width:100%; padding:15px; margin-bottom:25px; border-radius:12px; border:1px solid #ddd; box-sizing: border-box;">
-            <button class="btn-finalizar" style="margin:0; width:100%" onclick="handleLogin()">Entrar</button>
-            <p onclick="document.getElementById('login-screen').style.display='none'" style="margin-top:20px; color:#999; cursor:pointer; font-size:0.9rem;">Cancelar</p>
+            <h2 style="color:var(--primary);">Login Admin</h2>
+            <input type="password" id="admPass" placeholder="Senha" class="client-input">
+            <button class="btn-finalizar" onclick="handleLogin()">ENTRAR</button>
         </div>
     </div>
     
-    <div style="text-align:center; padding: 20px;" class="no-print"><small onclick="showLogin()" style="color:#ccc; cursor:pointer;">Acesso Administrativo</small></div>
-
-    <script>
-        function showLogin() { document.getElementById('login-screen').style.display = 'flex'; }
-        function toggleC(s) { document.getElementById('c-fields').style.display = s ? 'block' : 'none'; }
-        function generateQR() {
-            const link = document.getElementById('qr-link').value;
-            if(!link) return;
-            document.getElementById("qr-printable-zone").style.display="block";
-            const cont = document.getElementById("qrcode"); cont.innerHTML="";
-            new QRCode(cont, { text: link, width: 280, height: 280 });
-        }
-    </script>
+    <div style="text-align:center; padding: 20px;" class="no-print"><small onclick="document.getElementById('login-screen').style.display='flex'" style="color:#ccc; cursor:pointer;">Acesso Administrativo</small></div>
 </body>
 </html>
