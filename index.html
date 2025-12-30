@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Avaliação V7.6 - Finalizado</title>
+    <title>Sistema de Avaliação V7.9 - Design Final</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <script type="module">
@@ -16,7 +16,8 @@
             projectId: "avalie-73150",
             storageBucket: "avalie-73150.firebasestorage.app",
             messagingSenderId: "583366208074",
-            appId: "1:583366208074:web:0f34f89ecc76d3c12154b3"
+            appId: "1:583366208074:web:0f34f89ecc76d3c12154b3",
+            measurementId: "G-MMNQ5B7KMV"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -26,13 +27,25 @@
             e.preventDefault();
             const btn = e.target.querySelector('.btn-finalizar');
             btn.disabled = true;
-            btn.innerText = "PROCESSANDO...";
+            btn.innerText = "ENVIANDO...";
 
             try {
-                const n1 = parseInt(document.querySelector('input[name="rate_dish"]:checked').value);
-                const n2 = parseInt(document.querySelector('input[name="rate_drink"]:checked').value);
-                const n3 = parseInt(document.querySelector('input[name="rate_service"]:checked').value);
-                const n4 = parseInt(document.querySelector('input[name="rate_struct"]:checked').value);
+                const dish = document.querySelector('input[name="rate_dish"]:checked');
+                const drink = document.querySelector('input[name="rate_drink"]:checked');
+                const service = document.querySelector('input[name="rate_service"]:checked');
+                const struct = document.querySelector('input[name="rate_struct"]:checked');
+
+                if(!dish || !drink || !service || !struct) {
+                    alert("Por favor, selecione todas as estrelas.");
+                    btn.disabled = false;
+                    btn.innerText = "Finalizar Avaliação";
+                    return;
+                }
+
+                const n1 = parseInt(dish.value);
+                const n2 = parseInt(drink.value);
+                const n3 = parseInt(service.value);
+                const n4 = parseInt(struct.value);
                 const wantC = document.querySelector('input[name="want_coupon"]:checked').value === "Sim";
                 const coupon = wantC ? "VIP-"+Math.floor(1000+Math.random()*9000) : null;
                 const now = new Date();
@@ -103,14 +116,14 @@
                 rL.innerHTML += `<div class="review-card" style="border-left: 8px solid ${color}">
                     <div style="display:flex; justify-content:space-between; font-weight:bold;">
                         <span>Mesa ${item.table} - ${item.avg.toFixed(1)}★</span>
-                        <small>${item.date.split('-').reverse().join('/')} - ${item.time}</small>
+                        <small>${item.date.split('-').reverse().join('/')} às ${item.time}</small>
                     </div>
                     <div class="card-details">
                         <span>🍴 Prato: ${item.n1}★</span><span>🍹 Bebida: ${item.n2}★</span>
                         <span>👨‍🍳 Atend: ${item.n3}★</span><span>🏠 Amb: ${item.n4}★</span>
                     </div>
                     <div style="margin-top:10px; font-weight:bold; color:var(--primary); display:flex; justify-content:space-between;">
-                        <span>${item.name} <span style="font-weight:normal; color:#888;">(${item.phone})</span></span>
+                        <span>${item.name} <small style="color:#888; font-weight:normal;">(${item.phone})</small></span>
                         <span>R$ ${item.value.toFixed(2)}</span>
                     </div>
                 </div>`;
@@ -136,59 +149,59 @@
         :root { --primary: #FF6B00; --dark: #2D3436; --light: #F4F7F6; --success: #2ecc71; --danger: #e74c3c; --gray: #dfe6e9; --star-gold: #FFD700; --purple: #9b59b6; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--light); margin: 0; }
         
-        /* Client View */
+        /* Client UI */
         .client-view { max-width: 450px; margin: 0 auto; padding: 40px 20px; background: #fff; min-height: 100vh; text-align: center; box-sizing: border-box; }
-        .client-input { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; box-sizing: border-box; text-align: center; margin-bottom: 10px; }
+        .client-input { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; box-sizing: border-box; text-align: center; margin-bottom: 10px; outline: none; }
         
         .btn-finalizar { 
             background: var(--primary); color: #fff; border: none; font-weight: 800; border-radius: 50px; cursor: pointer; padding: 20px; width: 100%; text-transform: uppercase; font-size: 1.1rem; margin-top: 15px; 
-            box-shadow: 0 4px 15px rgba(255,107,0,0.3); transition: 0.3s; 
+            box-shadow: 0 4px 15px rgba(255,107,0,0.3); transition: all 0.3s; 
         }
-        .btn-finalizar:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,107,0,0.5); filter: brightness(1.1); }
+        .btn-finalizar:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,107,0,0.5); }
 
         .star-rating { display: flex; justify-content: center; flex-direction: row-reverse; margin-bottom: 20px; }
         .star-rating input { display: none; }
-        .star-rating label { font-size: 40px; cursor: pointer; color: #ddd; padding: 0 3px; transition: 0.2s; }
+        .star-rating label { font-size: 40px; cursor: pointer; color: #ddd; padding: 0 3px; transition: color 0.2s; }
         .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: var(--star-gold) !important; }
         
-        /* Admin View */
+        /* Admin UI */
         .admin-view { display: none; padding: 30px 20px; max-width: 900px; margin: 0 auto; position: relative; }
         .btn-sair-discreto { position: absolute; top: 10px; right: 20px; background: none; border: none; color: #bbb; cursor: pointer; font-size: 0.75rem; text-decoration: underline; }
         .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
         .metric-card { background: #fff; padding: 20px; border-radius: 15px; text-align: center; border: 1px solid #eee; }
         .metric-card span { display: block; font-size: 1.8rem; font-weight: 800; color: var(--primary); }
-        .filter-input { border: 1px solid #ddd; border-radius: 20px; padding: 8px 15px; outline: none; }
+        
+        /* Campos de Filtro Arredondados */
+        .filter-input { border: 1px solid #ddd; border-radius: 20px; padding: 10px 15px; outline: none; font-size: 0.8rem; }
+        .btn-filtrar { background: var(--primary); color: white; border: none; border-radius: 20px; padding: 10px 25px; font-weight: bold; cursor: pointer; font-size: 0.8rem; transition: 0.3s; }
+        .btn-filtrar:hover { filter: brightness(1.1); }
 
         details { background: white; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; }
         summary { padding: 15px; font-weight: 800; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         summary::after { content: ' ▼'; font-size: 0.7rem; color: var(--primary); }
-        details[open] summary::after { content: ' ▲'; }
 
         .coupon-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
         .coupon-table td { padding: 12px; border-bottom: 1px solid #f9f9f9; text-align: center; }
         
-        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); } }
+        /* Efeito Pulsante no Cupom */
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); transform: scale(1); } 70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); transform: scale(1.05); } 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); transform: scale(1); } }
         .btn-status { border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.7rem; }
         .btn-baixar { background: var(--danger); color: white; animation: pulse-red 2s infinite; cursor: pointer; }
         .btn-validado { background: var(--success); color: white; opacity: 0.6; }
         .btn-expirado { background: var(--purple); color: white; }
         
-        .review-card { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #f0f0f0; text-align: left; }
+        .review-card { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #f0f0f0; }
         .card-details { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.7rem; margin-top: 8px; background: #f9f9f9; padding: 8px; border-radius: 8px; }
-        
-        /* IMPRESSÃO FIXADA */
-        #print-area { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        
+
         @media print {
             @page { margin: 0; }
             body * { visibility: hidden; }
             .admin-view, #print-area, #print-area * { visibility: visible !important; }
-            .admin-view { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; margin: 0 !important; display: block !important; }
-            #print-area { height: 100vh; width: 100%; display: flex !important; }
-            #qrcode { display: block !important; margin-top: 20px; }
-            #qrcode canvas, #qrcode img { display: inline-block !important; width: 350px !important; height: 350px !important; }
+            .admin-view { position: absolute; left: 0; top: 0; width: 100%; display: block !important; padding: 0 !important; }
+            #print-area { height: 100vh; width: 100%; display: flex !important; flex-direction: column; align-items: center; justify-content: center; }
+            #qrcode canvas, #qrcode img { width: 400px !important; height: 400px !important; }
             .no-print { display: none !important; }
-            h2 { font-size: 32pt !important; margin-bottom: 20px !important; color: #000 !important; }
+            h2 { font-size: 30pt !important; color: #000 !important; }
             p { font-size: 18pt !important; color: #000 !important; }
         }
     </style>
@@ -207,14 +220,18 @@
                     <input type="number" id="tableNum" placeholder="Nº Mesa" class="client-input" required>
                     <input type="number" id="spendValue" placeholder="Valor Gasto" class="client-input" step="0.01">
                 </div>
+
                 <label style="font-weight:700;">Prato Principal</label>
-                <div class="star-rating"><input type="radio" id="p1-5" name="rate_dish" value="5" required><label for="p1-5">★</label><input type="radio" id="p1-4" name="rate_dish" value="4"><label for="p1-4">★</label><input type="radio" id="p1-3" name="rate_dish" value="3"><label for="p1-3">★</label><input type="radio" id="p1-2" name="rate_dish" value="2"><label for="p1-2">★</label><input type="radio" id="p1-1" name="rate_dish" value="1"><label for="p1-1">★</label></div>
+                <div class="star-rating"><input type="radio" id="p1-5" name="rate_dish" value="5"><label for="p1-5">★</label><input type="radio" id="p1-4" name="rate_dish" value="4"><label for="p1-4">★</label><input type="radio" id="p1-3" name="rate_dish" value="3"><label for="p1-3">★</label><input type="radio" id="p1-2" name="rate_dish" value="2"><label for="p1-2">★</label><input type="radio" id="p1-1" name="rate_dish" value="1"><label for="p1-1">★</label></div>
+                
                 <label style="font-weight:700;">Bebidas</label>
-                <div class="star-rating"><input type="radio" id="p2-5" name="rate_drink" value="5" required><label for="p2-5">★</label><input type="radio" id="p2-4" name="rate_drink" value="4"><label for="p2-4">★</label><input type="radio" id="p2-3" name="rate_drink" value="3"><label for="p2-3">★</label><input type="radio" id="p2-2" name="rate_drink" value="2"><label for="p2-2">★</label><input type="radio" id="p2-1" name="rate_drink" value="1"><label for="p2-1">★</label></div>
+                <div class="star-rating"><input type="radio" id="p2-5" name="rate_drink" value="5"><label for="p2-5">★</label><input type="radio" id="p2-4" name="rate_drink" value="4"><label for="p2-4">★</label><input type="radio" id="p2-3" name="rate_drink" value="3"><label for="p2-3">★</label><input type="radio" id="p2-2" name="rate_drink" value="2"><label for="p2-2">★</label><input type="radio" id="p2-1" name="rate_drink" value="1"><label for="p2-1">★</label></div>
+
                 <label style="font-weight:700;">Atendimento</label>
-                <div class="star-rating"><input type="radio" id="p3-5" name="rate_service" value="5" required><label for="p3-5">★</label><input type="radio" id="p3-4" name="rate_service" value="4"><label for="p3-4">★</label><input type="radio" id="p3-3" name="rate_service" value="3"><label for="p3-3">★</label><input type="radio" id="p3-2" name="rate_service" value="2"><label for="p3-2">★</label><input type="radio" id="p3-1" name="rate_service" value="1"><label for="p3-1">★</label></div>
+                <div class="star-rating"><input type="radio" id="p3-5" name="rate_service" value="5"><label for="p3-5">★</label><input type="radio" id="p3-4" name="rate_service" value="4"><label for="p3-4">★</label><input type="radio" id="p3-3" name="rate_service" value="3"><label for="p3-3">★</label><input type="radio" id="p3-2" name="rate_service" value="2"><label for="p3-2">★</label><input type="radio" id="p3-1" name="rate_service" value="1"><label for="p3-1">★</label></div>
+
                 <label style="font-weight:700;">Ambiente</label>
-                <div class="star-rating"><input type="radio" id="p4-5" name="rate_struct" value="5" required><label for="p4-5">★</label><input type="radio" id="p4-4" name="rate_struct" value="4"><label for="p4-4">★</label><input type="radio" id="p4-3" name="rate_struct" value="3"><label for="p4-3">★</label><input type="radio" id="p4-2" name="rate_struct" value="2"><label for="p4-2">★</label><input type="radio" id="p4-1" name="rate_struct" value="1"><label for="p4-1">★</label></div>
+                <div class="star-rating"><input type="radio" id="p4-5" name="rate_struct" value="5"><label for="p4-5">★</label><input type="radio" id="p4-4" name="rate_struct" value="4"><label for="p4-4">★</label><input type="radio" id="p4-3" name="rate_struct" value="3"><label for="p4-3">★</label><input type="radio" id="p4-2" name="rate_struct" value="2"><label for="p4-2">★</label><input type="radio" id="p4-1" name="rate_struct" value="1"><label for="p4-1">★</label></div>
 
                 <div style="margin: 20px 0; background: #fffcf0; padding: 15px; border-radius: 15px; border: 1px solid #ffeaa7;">
                     <label style="font-weight:700;">Deseja ganhar 5% de desconto?</label>
@@ -250,9 +267,10 @@
         <button onclick="location.reload()" class="btn-sair-discreto no-print">Sair do Painel</button>
         <div class="admin-header no-print"><h1 style="color: var(--primary); font-size: 2.6rem; font-weight: 800; margin:0; text-align:center;">Performance do Negócio</h1></div>
         
-        <div style="display: flex; justify-content: center; gap: 10px; margin: 25px 0;" class="no-print">
-            <input type="date" id="dateStart" class="filter-input"> <input type="date" id="dateEnd" class="filter-input"> 
-            <button class="btn-finalizar" style="width:auto; padding:8px 25px; margin:0; font-size:0.8rem;" onclick="renderAdmin()">FILTRAR</button>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin: 25px 0;" class="no-print">
+            <input type="date" id="dateStart" class="filter-input"> 
+            <input type="date" id="dateEnd" class="filter-input"> 
+            <button class="btn-filtrar" onclick="renderAdmin()">FILTRAR</button>
         </div>
 
         <div class="dashboard-grid no-print">
